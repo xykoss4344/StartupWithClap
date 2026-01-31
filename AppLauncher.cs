@@ -11,6 +11,8 @@ namespace ProjectStarkCS
         public string WakeWord { get; set; } = "Jarvis";
         public double ClapThreshold { get; set; } = 0.5;
         public int LaunchDelaySeconds { get; set; } = 5;
+        public string StartupSoundPath { get; set; } = "";
+        public bool EnableMonitorFix { get; set; } = false;
         public List<string> TargetApps { get; set; } = new List<string>();
     }
 
@@ -54,11 +56,14 @@ namespace ProjectStarkCS
             }
 
             Console.WriteLine(">>> PROTOCOL INITIATED <<<");
+
             foreach (var app in _config.TargetApps)
             {
                 try
                 {
-                    Console.WriteLine($"Launching: {app}");
+                    // Obfuscate logging to prevent terminal/agent from trying to fetch URLs/Paths
+                    string displayName = app.StartsWith("http") ? "Web URL" : Path.GetFileName(app);
+                    Console.WriteLine($"Launching: {displayName}");
                     Process.Start(new ProcessStartInfo
                     {
                         FileName = app,
@@ -72,6 +77,28 @@ namespace ProjectStarkCS
                 {
                     Console.WriteLine($"Failed to launch {app}: {ex.Message}");
                 }
+            }
+        }
+
+        public static void PerformMonitorHandshake()
+        {
+            try
+            {
+                Console.WriteLine("Force-cycling display signal (Monitor Fix)...");
+                
+                // 1. Switch to Internal Only (disconnects external monitors logic-wise)
+                Process.Start("DisplaySwitch.exe", "/internal");
+                System.Threading.Thread.Sleep(2000); // Wait for signal drop
+
+                // 2. Switch to Extend (re-negotiates signal)
+                Process.Start("DisplaySwitch.exe", "/extend");
+                System.Threading.Thread.Sleep(2000); // Wait for signal sync
+                
+                Console.WriteLine("Display signal cycled.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Monitor handshake failed: {ex.Message}");
             }
         }
     }

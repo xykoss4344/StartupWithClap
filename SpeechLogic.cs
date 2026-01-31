@@ -8,6 +8,7 @@ namespace ProjectStarkCS
         private SpeechRecognitionEngine _recognizer;
         private string _wakeWord;
         public event EventHandler OnWakeWordDetected;
+        public event EventHandler OnFixDisplayCommand;
 
         public SpeechLogic(string wakeWord)
         {
@@ -23,9 +24,12 @@ namespace ProjectStarkCS
                 _recognizer = new SpeechRecognitionEngine(System.Globalization.CultureInfo.CurrentCulture);
 
                 // Create grammar for the wake word
+                // Create grammar for the wake word and commands
                 Choices commands = new Choices();
                 commands.Add(_wakeWord);
-                commands.Add(_wakeWord.ToLower()); // Add lowercase variant just in case
+                commands.Add(_wakeWord.ToLower()); 
+                commands.Add("Fix Display");
+                commands.Add("Fix Monitor");
                 
                 GrammarBuilder gb = new GrammarBuilder();
                 gb.Append(commands);
@@ -46,7 +50,7 @@ namespace ProjectStarkCS
         {
             try
             {
-                Console.WriteLine($"Listening for wake word: '{_wakeWord}'...");
+                Console.WriteLine($"Listening for wake word: '{_wakeWord}' or 'Fix Display'...");
                 _recognizer.RecognizeAsync(RecognizeMode.Multiple);
             }
             catch (Exception ex)
@@ -62,10 +66,19 @@ namespace ProjectStarkCS
 
         private void _recognizer_SpeechRecognized(object sender, SpeechRecognizedEventArgs e)
         {
-            if (e.Result.Text.Equals(_wakeWord, StringComparison.OrdinalIgnoreCase))
+            float confidence = e.Result.Confidence;
+            string text = e.Result.Text;
+
+            if (text.Equals(_wakeWord, StringComparison.OrdinalIgnoreCase))
             {
-                Console.WriteLine($"Wake word detected! ({e.Result.Confidence:F2})");
+                Console.WriteLine($"Wake word detected! ({confidence:F2})");
                 OnWakeWordDetected?.Invoke(this, EventArgs.Empty);
+            }
+            else if ((text.Equals("Fix Display", StringComparison.OrdinalIgnoreCase) || 
+                      text.Equals("Fix Monitor", StringComparison.OrdinalIgnoreCase)) && confidence > 0.6)
+            {
+                Console.WriteLine($"Command Detected: {text} ({confidence:F2})");
+                OnFixDisplayCommand?.Invoke(this, EventArgs.Empty);
             }
         }
     }
