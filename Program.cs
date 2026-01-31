@@ -15,6 +15,7 @@ namespace ProjectStarkCS
         private static AudioMonitor _audioMonitor;
         private static string _baseDir;
         private static bool _waitingForClaps = false;
+        private static bool _hasPlayedSound = false;
         private static Timer _timeoutTimer;
 
         static void Main(string[] args)
@@ -28,7 +29,12 @@ namespace ProjectStarkCS
                 string configPath = Path.Combine(_baseDir, "config.json");
                 _config = AppLauncher.LoadConfig(configPath);
 
-                // 2. Monitor Handshake (Startup logic removed for safety - moved to Voice Command)
+                // 2. Monitor Handshake
+                if (_config.EnableMonitorFix)
+                {
+                    Log("Config: Monitor Fix Enabled. Executing Handshake...");
+                    AppLauncher.PerformMonitorHandshake();
+                }
 
                 // 3. Initialize Components
                 Log("Initializing Speech and Audio...");
@@ -85,9 +91,10 @@ namespace ProjectStarkCS
             Log("Voice Command: Fix Display");
             Console.WriteLine("Executing Monitor Fix Protocol...");
             
-            // Optional: Play acknowledgment sound
-            if (!string.IsNullOrEmpty(_config.StartupSoundPath))
+            // Optional: Play acknowledgment sound (Once)
+            if (!string.IsNullOrEmpty(_config.StartupSoundPath) && !_hasPlayedSound)
             {
+                _hasPlayedSound = true;
                 // Play sound in background so we don't block
                  string soundPath = _config.StartupSoundPath;
                  if (!Path.IsPathRooted(soundPath)) soundPath = Path.Combine(_baseDir, soundPath);
@@ -107,9 +114,10 @@ namespace ProjectStarkCS
             _audioMonitor.Stop();
             _waitingForClaps = false;
 
-            // Play Startup Sound
-            if (!string.IsNullOrEmpty(_config.StartupSoundPath))
+            // Play Startup Sound (Once)
+            if (!string.IsNullOrEmpty(_config.StartupSoundPath) && !_hasPlayedSound)
             {
+                _hasPlayedSound = true;
                 // Ensure absolute path
                 string soundPath = _config.StartupSoundPath;
                 if (!Path.IsPathRooted(soundPath))

@@ -1,22 +1,24 @@
 $packageName = "ProjectStarkCS"
-$exePath = Join-Path $PSScriptRoot "bin\Release\net10.0\ProjectStarkCS.exe"
+# Point to the BATCH file now, not the EXE
+$batchPath = Join-Path $PSScriptRoot "launch_with_delay.bat"
 $startupDir = [Environment]::GetFolderPath("Startup")
-$shortcutPath = Join-Path $startupDir "ProjectStark.lnk"
+$shortcutPath = Join-Path $startupDir "ProjectStark_Delayed.lnk"
 
-Write-Host "Installing Project Stark to Startup..."
-Write-Host "Source Exe: $exePath"
+Write-Host "Installing Project Stark (Delayed) to Startup..."
+Write-Host "Source Batch: $batchPath"
 Write-Host "Startup Dir: $startupDir"
 
-if (!(Test-Path $exePath)) {
-    Write-Error "Release build not found! Please run 'dotnet build -c Release' first."
+if (!(Test-Path $batchPath)) {
+    Write-Error "Batch file not found!"
     exit
 }
 
 $wshShell = New-Object -ComObject WScript.Shell
 $shortcut = $wshShell.CreateShortcut($shortcutPath)
-$shortcut.TargetPath = $exePath
-$shortcut.WorkingDirectory = Split-Path $exePath -Parent
-$shortcut.Description = "Project Stark - Jarvis Protocol"
+$shortcut.TargetPath = $batchPath
+$shortcut.WorkingDirectory = $PSScriptRoot
+$shortcut.WindowStyle = 7 # 7 = Minimized / 1 = Normal
+$shortcut.Description = "Project Stark - Jarvis Protocol (Delayed Start)"
 $shortcut.Save()
 
 Write-Host "Success! Project Stark will now run when you log in."

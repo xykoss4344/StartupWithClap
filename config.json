@@ -2,7 +2,7 @@
     "WakeWord": "Jarvis",
     "ClapThreshold": 0.2,
     "StartupSoundPath": "startup.mp3",
-    "EnableMonitorFix": false,
+    "EnableMonitorFix": true,
     "TargetApps": [
         "C:\\Program Files\\Unity Hub\\Unity Hub.exe",
         "https://www.google.com",
