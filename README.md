@@ -1,0 +1,1 @@
+i did this cause i was bored there is really no benifit of using it given that windows already have startup app stuff maybe ill make it work for linux later. it just does the clap twice say wake up and play the ironman 2 music and open all your tab for you 
