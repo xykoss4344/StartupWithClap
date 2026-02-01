@@ -13,6 +13,7 @@ namespace ProjectStarkCS
         public int LaunchDelaySeconds { get; set; } = 5;
         public string StartupSoundPath { get; set; } = "";
         public bool EnableMonitorFix { get; set; } = false;
+        public double SpeechConfidence { get; set; } = 0.6;
         public List<string> TargetApps { get; set; } = new List<string>();
     }
 
@@ -65,12 +66,15 @@ namespace ProjectStarkCS
                     string displayName = app.StartsWith("http") ? "Web URL" : Path.GetFileName(app);
                     Console.WriteLine($"Launching: {displayName}");
 
-                    // Use ShellExecute = true to rely on Windows Shell to launch the app.
-                    // This creates a fully detached process that survives the parent console closing.
+                    // Use cmd.exe /c start to fully detach the process.
+                    // This breaks the parent-child relationship ensuring apps stay open when the console closes.
                     Process.Start(new ProcessStartInfo
                     {
-                        FileName = app,
-                        UseShellExecute = true
+                        FileName = "cmd.exe",
+                        Arguments = $"/c start \"\" \"{app}\"",
+                        UseShellExecute = true,
+                        CreateNoWindow = true,
+                        WindowStyle = ProcessWindowStyle.Hidden
                     });
                     
                     // Add a small delay between launches to prevent system/display driver stutter

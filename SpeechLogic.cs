@@ -7,12 +7,14 @@ namespace ProjectStarkCS
     {
         private SpeechRecognitionEngine _recognizer;
         private string _wakeWord;
+        private double _confidenceThreshold;
         public event EventHandler OnWakeWordDetected;
         public event EventHandler OnFixDisplayCommand;
 
-        public SpeechLogic(string wakeWord)
+        public SpeechLogic(string wakeWord, double confidenceThreshold = 0.6)
         {
             _wakeWord = wakeWord;
+            _confidenceThreshold = confidenceThreshold;
             InitRecognizer();
         }
 
@@ -69,7 +71,7 @@ namespace ProjectStarkCS
             float confidence = e.Result.Confidence;
             string text = e.Result.Text;
 
-            if (text.Equals(_wakeWord, StringComparison.OrdinalIgnoreCase))
+            if (text.Equals(_wakeWord, StringComparison.OrdinalIgnoreCase) && confidence >= _confidenceThreshold)
             {
                 Console.WriteLine($"Wake word detected! ({confidence:F2})");
                 OnWakeWordDetected?.Invoke(this, EventArgs.Empty);

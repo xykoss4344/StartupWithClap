@@ -38,7 +38,7 @@ namespace ProjectStarkCS
 
                 // 3. Initialize Components
                 Log("Initializing Speech and Audio...");
-                _speech = new SpeechLogic(_config.WakeWord);
+                _speech = new SpeechLogic(_config.WakeWord, _config.SpeechConfidence);
                 _audioMonitor = new AudioMonitor(_config.ClapThreshold);
 
                 // 4. Wire Events
@@ -75,7 +75,7 @@ namespace ProjectStarkCS
             catch { }
         }
 
-        private static void Speech_OnWakeWordDetected(object sender, EventArgs e)
+        private static async void Speech_OnWakeWordDetected(object sender, EventArgs e)
         {
             if (!_waitingForVoice) return;
 
@@ -87,21 +87,28 @@ namespace ProjectStarkCS
             _speech.StopListening();
             _waitingForVoice = false;
 
-            // 2. Play Sound IMMEDIATELY (Async)
+            // 2. Start Sound (Async)
+            Task soundTask = Task.CompletedTask;
             if (!string.IsNullOrEmpty(_config.StartupSoundPath) && !_hasPlayedSound)
             {
                 _hasPlayedSound = true;
                 string soundPath = _config.StartupSoundPath;
                 if (!Path.IsPathRooted(soundPath)) soundPath = Path.Combine(_baseDir, soundPath);
-                Task.Run(() => PlaySound(soundPath));
+                
+                // Run blocking PlaySound in a background thread
+                soundTask = Task.Run(() => PlaySound(soundPath));
             }
 
-            // 3. Wait 2 Seconds
-            Console.WriteLine("Standby for application launch...");
-            Thread.Sleep(2000);
-
-            // 4. Launch Apps
+            // 3. Launch Apps Immediately (Process Detachment ensures they stay open)
+            Console.WriteLine("Launching applications...");
             AppLauncher.ExecuteProtocol();
+
+            // 4. Wait for Sound to Finish before killing the launcher
+            if (!soundTask.IsCompleted)
+            {
+                Console.WriteLine("Waiting for audio to complete...");
+                await soundTask;
+            }
 
             // 5. TERMINATE
             Console.WriteLine("Sequence Complete. Shutting down agent.");
