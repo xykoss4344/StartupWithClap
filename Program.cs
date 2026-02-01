@@ -14,7 +14,7 @@ namespace ProjectStarkCS
         private static SpeechLogic _speech;
         private static AudioMonitor _audioMonitor;
         private static string _baseDir;
-        private static bool _waitingForClaps = false;
+        private static bool _waitingForVoice = false;
         private static bool _hasPlayedSound = false;
         private static Timer _timeoutTimer;
 
@@ -46,10 +46,12 @@ namespace ProjectStarkCS
                 _speech.OnFixDisplayCommand += Speech_OnFixDisplayCommand;
                 _audioMonitor.OnDoubleClapDetected += AudioMonitor_OnDoubleClapDetected;
 
-                // 5. Start Listening
-                _speech.StartListening();
+                // 5. Start Listening for CLAPS first (Logic Inversion)
+                Log("System Online. Listening for Double Clap...");
+                Console.WriteLine("System Online. CLAP TWICE to arm.");
+                _audioMonitor.Start();
+                // do NOT start speech yet
 
-                Console.WriteLine("System Online. Say the wake word to arm.");
                 Log("System Online and Listening.");
                 
                 // Keep app alive
@@ -75,15 +77,36 @@ namespace ProjectStarkCS
 
         private static void Speech_OnWakeWordDetected(object sender, EventArgs e)
         {
-            if (_waitingForClaps) return; 
+            if (!_waitingForVoice) return;
 
-            Console.WriteLine(">>> SYSTEM ARMED. CLAP TWICE TO EXECUTE <<<");
-            Log("Wake Word Detected. Waiting for claps.");
-            _waitingForClaps = true;
-            
-            _audioMonitor.Start();
+            Console.WriteLine(">>> VOICE CONFIRMED. EXECUTING PROTOCOL <<<");
+            Log("Voice Command Detected. Initiating Sequence.");
 
-            _timeoutTimer = new Timer(OnTimeout, null, 5000, Timeout.Infinite);
+            // 1. Stop Listeners
+            _timeoutTimer?.Dispose();
+            _speech.StopListening();
+            _waitingForVoice = false;
+
+            // 2. Play Sound IMMEDIATELY (Async)
+            if (!string.IsNullOrEmpty(_config.StartupSoundPath) && !_hasPlayedSound)
+            {
+                _hasPlayedSound = true;
+                string soundPath = _config.StartupSoundPath;
+                if (!Path.IsPathRooted(soundPath)) soundPath = Path.Combine(_baseDir, soundPath);
+                Task.Run(() => PlaySound(soundPath));
+            }
+
+            // 3. Wait 2 Seconds
+            Console.WriteLine("Standby for application launch...");
+            Thread.Sleep(2000);
+
+            // 4. Launch Apps
+            AppLauncher.ExecuteProtocol();
+
+            // 5. TERMINATE
+            Console.WriteLine("Sequence Complete. Shutting down agent.");
+            Log("Sequence Complete. Exiting.");
+            Environment.Exit(0);
         }
 
         private static void Speech_OnFixDisplayCommand(object sender, EventArgs e)
@@ -106,36 +129,19 @@ namespace ProjectStarkCS
 
         private static void AudioMonitor_OnDoubleClapDetected(object sender, EventArgs e)
         {
-            if (!_waitingForClaps) return;
+            // If we are already waiting for voice (or executed), ignore
+            if (_waitingForVoice) return;
 
-            Console.WriteLine("Authentication Confirmed.");
-            Log("Double Clap Detected.");
-            _timeoutTimer?.Dispose();
+            Console.WriteLine(">>> CLAP DETECTED. SAY 'WAKE UP' <<<");
+            Log("Double Clap Detected. Waiting for Voice.");
+
+            // Switch to Voice Mode
             _audioMonitor.Stop();
-            _waitingForClaps = false;
+            _waitingForVoice = true;
+            _speech.StartListening();
 
-            // Play Startup Sound (Once)
-            if (!string.IsNullOrEmpty(_config.StartupSoundPath) && !_hasPlayedSound)
-            {
-                _hasPlayedSound = true;
-                // Ensure absolute path
-                string soundPath = _config.StartupSoundPath;
-                if (!Path.IsPathRooted(soundPath))
-                {
-                    soundPath = Path.Combine(_baseDir, soundPath);
-                }
-                
-                Task.Run(() => PlaySound(soundPath));
-            }
-
-            Console.WriteLine("Initiating 4-second pre-flight sequence...");
-            Thread.Sleep(4000); 
-
-            // EXECUTE PROTOCOL
-            AppLauncher.ExecuteProtocol();
-
-            Console.WriteLine("Protocol Complete. Resuming Listen Mode...");
-            Log("Protocol Executed.");
+            // Start 5s Timeout
+            _timeoutTimer = new Timer(OnTimeout, null, 5000, Timeout.Infinite);
         }
 
         private static void PlaySound(string path)
@@ -169,11 +175,13 @@ namespace ProjectStarkCS
 
         private static void OnTimeout(object state)
         {
-            if (_waitingForClaps)
+            if (_waitingForVoice)
             {
-                Console.WriteLine("Timeout. System Disarmed.");
-                _audioMonitor.Stop();
-                _waitingForClaps = false;
+                Console.WriteLine("Timeout. Voice not detected. Resetting...");
+                _speech.StopListening();
+                _waitingForVoice = false;
+                _audioMonitor.Start();
+                Console.WriteLine("System Reset. Listening for Double Clap...");
             }
             _timeoutTimer?.Dispose();
         }

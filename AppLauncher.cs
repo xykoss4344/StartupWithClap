@@ -64,15 +64,13 @@ namespace ProjectStarkCS
                     // Obfuscate logging to prevent terminal/agent from trying to fetch URLs/Paths
                     string displayName = app.StartsWith("http") ? "Web URL" : Path.GetFileName(app);
                     Console.WriteLine($"Launching: {displayName}");
-                    // Use cmd.exe /c start to launch as a fully detached process.
-                    // This prevents the app from closing when the main terminal (Project Stark) is closed.
+
+                    // Use ShellExecute = true to rely on Windows Shell to launch the app.
+                    // This creates a fully detached process that survives the parent console closing.
                     Process.Start(new ProcessStartInfo
                     {
-                        FileName = "cmd.exe",
-                        Arguments = $"/c start \"\" \"{app}\"",
-                        UseShellExecute = false,
-                        CreateNoWindow = true,
-                        WindowStyle = ProcessWindowStyle.Hidden
+                        FileName = app,
+                        UseShellExecute = true
                     });
                     
                     // Add a small delay between launches to prevent system/display driver stutter
